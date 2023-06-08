@@ -1,33 +1,17 @@
-/**
-  * RubyGarage.
-  * https://rubygarage.org/
-  *
-  * Copyright (c) 2016 RubyGarage.
-  * Licensed under the MIT license.
-  */
 
-/**
-  * Returns augumented dataset, seasonal coefficients and errors.
-  *
-  * @param {Array<Number>} data - input data
-  * @param {Number} m - extrapolated future data points
-  *
-  * @returns {Object}
-  */
-function getAugumentedDataset (data, m) {
+function getAugumentedDataset (data, predictionLength) {
     var initialparams = [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0]
     var alpha, beta, gamma, period, prediction
     var err = Infinity
   
-    // TODO: rewrite this bruteforce with Levenberg-Marquardt equation
     initialparams.forEach(function (a) {
       initialparams.forEach(function (b) {
         initialparams.forEach(function (g) {
-          for (var p = 1; p < data.length / 2; p++) {
-            var currentPrediction = getForecast(data, a, b, g, p, m)
+          for (var currentPeriod = 1; currentPeriod < data.length / 2; currentPeriod++) {
+            var currentPrediction = getForecast(data, a, b, g, currentPeriod, predictionLength)
             var error
             if (currentPrediction) {
-              error = mse(data, currentPrediction, p)
+              error = mse(data, currentPrediction, currentPeriod)
             }
   
             if (error && err > error) {
@@ -35,7 +19,7 @@ function getAugumentedDataset (data, m) {
               alpha = a
               beta = b
               gamma = g
-              period = p
+              period = currentPeriod
               prediction = currentPrediction
             }
           }
@@ -44,10 +28,6 @@ function getAugumentedDataset (data, m) {
     })
   
     var augumentedDataset = prediction.slice(data.length)
-  
-    // for (var i = 0; i < data.length; i++) {
-    //   augumentedDataset[i] = data[i]
-    // }
   
     return {
       prediction: augumentedDataset,
@@ -61,10 +41,10 @@ function getAugumentedDataset (data, m) {
     }
   }
   
-  function getForecast (data, alpha, beta, gamma, period, m) {
+  function getForecast (data, alpha, beta, gamma, period, predictionLength) {
     var seasons, seasonal, st1, bt1
   
-    if (!validArgs(data, alpha, beta, gamma, period, m)) {
+    if (!validArgs(data, alpha, beta, gamma, period, predictionLength)) {
       return
     }
   
@@ -82,7 +62,7 @@ function getAugumentedDataset (data, m) {
       gamma,
       seasonal,
       period,
-      m
+      predictionLength
     )
   }
   
@@ -106,14 +86,14 @@ function getAugumentedDataset (data, m) {
     return Math.abs(sum / (origin.length - period))
   }
   
-  function validArgs (data, alpha, beta, gamma, period, m) {
+  function validArgs (data, alpha, beta, gamma, period, predictionLength) {
     if (!data.length) {
       return false
     }
-    if (m <= 0) {
+    if (predictionLength <= 0) {
       return false
     }
-    if (m > period) {
+    if (predictionLength > period) {
       return false
     }
     if (alpha < 0.0 || alpha > 1.0) {
